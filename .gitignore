@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+
+# Node
+node_modules/
+.next/
+dist/
+build/
+
+# Secrets - NEVER COMMIT
+.env
+.env.local
+.env.development
+.env.production
+service-account*.json
+gcp-credentials*.json
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Caches
+.cache/
+.turbo/
+*.log

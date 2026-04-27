@@ -1,0 +1,6 @@
+{
+  "name": "FairGuard",
+  "description": "Open-source fairness auditing platform for AI decision systems (hiring, lending, medical triage).",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

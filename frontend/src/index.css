@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Courier+Prime&family=Inter:wght@300;400;600&family=Playfair+Display:ital,wght@1,900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --font-mono: "Courier Prime", ui-monospace, SFMono-Regular, monospace;
+
+  /* Base Theme Colors */
+  --color-background: #F8F7F4;
+  --color-foreground: #0A0A0A;
+  --color-card: rgba(255, 255, 255, 0.4);
+  --color-border: rgba(10, 10, 10, 0.08);
+  --color-accent: #10b981;
+}
+
+@layer base {
+  .dark {
+    --color-background: #0A0A0A;
+    --color-foreground: #F8F7F4;
+    --color-card: rgba(20, 20, 20, 0.6);
+    --color-border: rgba(248, 247, 244, 0.08);
+    --color-accent: #34d399;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-foreground selection:text-background transition-colors duration-500;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+  }
+}
+
+/* Glassmorphism & Utility */
+.glass {
+  @apply backdrop-blur-xl bg-card border border-border;
+}
+
+.tech-grid {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, var(--color-border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
+}
+
+.noise-filter {
+  filter: url(#noiseFilter);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-background;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-foreground/10 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-foreground/20;
+}

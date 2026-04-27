@@ -1,0 +1,29 @@
+{
+  "name": "fairguard-monorepo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite frontend --port 3000 --host 0.0.0.0",
+    "build": "vite build frontend",
+    "lint": "eslint frontend",
+    "test:backend": "pytest backend/tests"
+  },
+  "dependencies": {
+    "clsx": "latest",
+    "tailwind-merge": "latest",
+    "lucide-react": "^0.546.0",
+    "recharts": "latest",
+    "react-markdown": "latest",
+    "framer-motion": "latest",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "motion": "^12.23.24"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.4",
+    "@tailwindcss/vite": "^4.1.14",
+    "tailwindcss": "^4.1.14",
+    "typescript": "latest",
+    "vite": "^6.2.0"
+  }
+}
