@@ -9,9 +9,8 @@ class AccessLevel(str, Enum):
     OB = "Open-Box"
 
 class StabilityProfile(BaseModel):
-    grade: str
-    perturbationScore: float
-    scenarioResults: Dict[str, float]
+    overall_grade: str
+    per_family: Dict[str, float]
 
 class CausalEffects(BaseModel):
     ctfDE: float

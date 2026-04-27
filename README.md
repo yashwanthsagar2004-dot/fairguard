@@ -18,3 +18,12 @@ View your app in AI Studio: https://ai.studio/apps/768db80a-c1f0-4d62-8736-c7ef7
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Running the white-box audit server
+
+The mechanistic interpretability module (`/audit/mechanistic`) requires a local GPU (RTX 4060 8GB or better) and is disabled by default.
+
+1. Install GPU dependencies:
+   `pip install -r backend/requirements-mechanistic.txt`
+2. Run with local mode enabled:
+   `$env:FAIRGUARD_LOCAL_MODE=1; uvicorn backend.main:app --host localhost --port 8001`

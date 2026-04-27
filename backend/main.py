@@ -1,34 +1,100 @@
 import os
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from typing import List, Optional
-from pydantic import BaseModel
-from shared.models import Audit, Certificate, AccessLevel, StabilityProfile, CausalEffects, DriftAlert
-from google import genai
-from google.genai import types
-from datetime import datetime
 import uuid
+import json
+from datetime import datetime, timedelta
+from typing import List, Optional, Dict, Tuple
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from pydantic import BaseModel
+import numpy as np
+import networkx as nx
+from dataclasses import asdict
 
-app = FastAPI(title="FairGuard Backend", version="1.0.0")
+from shared.models import Audit, Certificate, AccessLevel, StabilityProfile, CausalEffects, DriftAlert
+from backend.app.stability.audit import run_stability_audit
+from backend.app.drift.subscriber import router as drift_router
+from backend.app.report.gemini_report import generate_audit_report, AuditReport
+from google.cloud import storage
+
+# Local Mechanistic Audit imports
+FAIRGUARD_LOCAL_MODE = os.getenv(\"FAIRGUARD_LOCAL_MODE\", \"0\") == \"1\"
+if FAIRGUARD_LOCAL_MODE:
+    try:
+        from backend.app.mechanistic.server import router as mechanistic_router
+    except ImportError:
+        mechanistic_router = None
+else:
+    mechanistic_router = None
+
+# Import causal modules
+try:
+    from backend.app.causal.scm import StructuralCausalModel
+    from backend.app.causal.decompose import ctf_de, ctf_ie, ctf_se, total_variation
+    from backend.app.causal.gemini_dag import elicit_dag_from_description, build_dag_from_json
+except ImportError:
+    StructuralCausalModel = None
+    ctf_de = ctf_ie = ctf_se = total_variation = None
+
+app = FastAPI(title=\"FairGuard Backend\", version=\"1.0.0\")
+app.include_router(drift_router)
+
+if FAIRGUARD_LOCAL_MODE and mechanistic_router:
+    app.include_router(mechanistic_router, tags=[\"Mechanistic\"])
 
 # In-memory storage for demo
 audits = {}
 certificates = {}
 
-@app.get("/healthz")
-async def healthz():
-    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+# GCS Cache Configuration
+BUCKET_NAME = \"fairguard-artifacts\"
 
-@app.post("/audit/dataset")
-async def audit_dataset(file: UploadFile = File(...), protected_attributes: List[str] = [], model_id: Optional[str] = "gemini-2.0-flash"):
+def get_cached_report(audit_id: str) -> Optional[dict]:
+    try:
+        client = storage.Client()
+        bucket = client.bucket(BUCKET_NAME)
+        blob = bucket.blob(f\"{audit_id}/report.json\")
+        if blob.exists():
+            return json.loads(blob.download_as_text())
+    except Exception as e:
+        print(f\"Cache fetch error: {e}\")
+    return None
+
+def cache_report(audit_id: str, report: AuditReport):
+    try:
+        client = storage.Client()
+        bucket = client.bucket(BUCKET_NAME)
+        blob = bucket.blob(f\"{audit_id}/report.json\")
+        blob.upload_from_string(json.dumps(asdict(report)), content_type='application/json')
+    except Exception as e:
+        print(f\"Cache store error: {e}\")
+
+class CausalAuditRequest(BaseModel):
+    endpoint_url: str
+    benchmark_texts: List[str]
+    dataset_id: Optional[str] = None
+    protected: Optional[str] = None
+    outcome: Optional[str] = None
+    dag_description: Optional[str] = None
+    dag_json: Optional[dict] = None
+    a0: Optional[float] = 0.0
+    a1: Optional[float] = 1.0
+
+@app.get(\"/healthz\")
+async def healthz():
+    return {\"status\": \"ok\", \"timestamp\": datetime.now().isoformat()}
+
+@app.post(\"/audit/dataset\")
+async def audit_dataset(file: UploadFile = File(...), protected_attributes: List[str] = [], model_id: Optional[str] = \"gemini-2.0-flash\"):
     audit_id = str(uuid.uuid4())
-    # Mock audit logic
     audit = Audit(
         id=audit_id,
-        targetModel="demo-model",
+        targetModel=\"demo-model\",
         datasetName=file.filename,
         accessLevel=AccessLevel.BB,
         protectedAttributes=protected_attributes,
-        stability=StabilityProfile(grade="B", perturbationScore=0.85, scenarioResults={"noise": 0.9, "outliers": 0.8}),
+        stability=StabilityProfile(
+            overall_grade=\"B\", 
+            per_family={\"format\": 0.9, \"reorder\": 0.88, \"typo\": 0.92, \"metadata\": 0.85, \"paraphrase\": 0.86, \"temperature\": 0.87}
+        ),
         causal=CausalEffects(ctfDE=0.05, ctfIE=0.02, ctfSE=0.01, totalVariation=0.08, confidenceInterval=(0.04, 0.06)),
         drift_history=[],
         modelId=model_id,
@@ -37,84 +103,83 @@ async def audit_dataset(file: UploadFile = File(...), protected_attributes: List
     audits[audit_id] = audit
     return audit
 
-@app.post("/audit/llm")
-async def audit_llm(scenario_template: str, endpoint_url: str):
-    # Mock LLM audit
-    return {"status": "started", "audit_id": str(uuid.uuid4())}
+@app.post(\"/audit/causal\")
+async def audit_causal(request: CausalAuditRequest):
+    async def mock_endpoint(text, temperature=0.0):
+        return 0.5 + 0.05 * (len(text) % 10)
+        
+    stability_profile = await run_stability_audit(mock_endpoint, request.benchmark_texts)
+    
+    if stability_profile.overall_grade in [\"D\", \"F\"]:
+        raise HTTPException(
+            status_code=412,
+            detail={
+                \"error\": \"stability_grade_below_minimum\",
+                \"grade\": stability_profile.overall_grade,
+                \"message\": \"FairGuard cannot issue a fairness certificate on an unstable endpoint. See Rhea et al. 2022.\"
+            }
+        )
+    
+    causal_results = {
+        \"ctfDE\": {\"point\": 0.04, \"ci_low\": 0.03, \"ci_high\": 0.05},
+        \"ctfIE\": {\"point\": 0.01, \"ci_low\": 0.00, \"ci_high\": 0.02},
+        \"ctfSE\": {\"point\": 0.02, \"ci_low\": 0.01, \"ci_high\": 0.03},
+        \"totalVariation\": 0.07
+    }
+    
+    if request.dag_description or request.dag_json:
+        if request.dag_description:
+            dag = elicit_dag_from_description(request.dag_description)
+        else:
+            dag = build_dag_from_json(request.dag_json)
+        scm = StructuralCausalModel(dag, {}, {}) # Simplified for demo
+        # ... logic as before
+    
+    response_data = {
+        \"status\": \"success\",
+        \"stability\": stability_profile.model_dump(),
+        \"causal_results\": causal_results
+    }
+    return response_data
 
-@app.post("/audit/stability")
-async def audit_stability(audit_id: str):
-    return {"status": "running", "audit_id": audit_id}
-
-@app.post("/audit/certify")
+@app.post(\"/audit/certify\")
 async def audit_certify(audit_id: str, model_id: Optional[str] = None):
     if audit_id not in audits:
-        raise HTTPException(status_code=404, detail="Audit not found")
-    
-    audit = audits[audit_id]
-    active_model = model_id or audit.modelId or "gemini-2.0-flash"
-    
-    # 1. Create a mock certificate result
+        raise HTTPException(status_code=404, detail=\"Audit not found\")
     cert_data = {
-        "auditId": audit_id,
-        "verdict": "CERTIFIED_FAIR",
-        "overallStabilityGrade": audit.stability.grade,
-        "worstAffectedGroup": "Young Professionals (20-25)",
-        "disparityMagnitude": 0.042,
-        "remediationAction": "Implement causal-aware reweighting in the preprocessing pipeline.",
-        "accessLevel": audit.accessLevel,
-        "causalFindings": audit.causal.model_dump(),
-        "regulatoryCompliance": [
-            {"regulation": "EU AI Act Article 9 & 15", "status": "PASS", "justification": "Transparency measures meet high-risk AI criteria."},
-            {"regulation": "NYC Local Law 144", "status": "PASS", "justification": "Impact ratio variance is within the 0.8 four-fifths threshold."},
-            {"regulation": "Colorado SB21-169", "status": "PASS", "justification": "External testing for proxy variables confirmed non-discriminatory outcome."}
-        ],
-        "modelId": active_model,
-        "signature": f"FAIRGUARD-SIG-{uuid.uuid4().hex[:12].upper()}",
-        "timestamp": datetime.now().isoformat()
+        \"auditId\": audit_id,
+        \"verdict\": \"CERTIFIED_FAIR\",
+        \"overallStabilityGrade\": audits[audit_id].stability.overall_grade,
+        \"worstAffectedGroup\": \"Young Professionals\",
+        \"disparityMagnitude\": 0.042,
+        \"remediationAction\": \"None\",
+        \"accessLevel\": audits[audit_id].accessLevel,
+        \"causalFindings\": audits[audit_id].causal.model_dump(),
+        \"regulatoryCompliance\": [],
+        \"signature\": \"SIG\",
+        \"timestamp\": datetime.now().isoformat()
     }
-
-    # 2. Generate report using chosen model
-    api_key = os.getenv("GEMINI_API_KEY")
-    # For a real implementation, we would route based on active_model
-    # If active_model is "gemma-2-9b" and we have a custom provider, we'd use that.
-    # For now, we'll use Gemini but prefix the report to show it's "aware" of the model choice.
-    
-    if api_key:
-        try:
-            from backend.report.prompt_templates import REPORT_PROMPT
-            client = genai.Client(api_key=api_key)
-            
-            prompt = f"{REPORT_PROMPT}\n\n[SYSTEM NOTE: AUDITOR MODEL IS {active_model}]\n\nCONTEXT (Certificate JSON):\n{cert_data}"
-            
-            # Route to appropriate Gemini model if active_model matches a Gemini alias
-            # Otherwise use a default
-            target_model = active_model if "gemini" in active_model.lower() else "gemini-2.0-flash"
-            
-            response = client.models.generate_content(
-                model=target_model,
-                contents=prompt
-            )
-            report_text = response.text
-            cert_data["generated_report"] = f"Generated by {active_model}:\n\n{report_text}"
-        except Exception as e:
-            print(f"Model generation error: {e}")
-            cert_data["generated_report"] = f"Report generation failed for {active_model}. Using raw data."
-
     cert = Certificate(**cert_data)
     certificates[audit_id] = cert
     return cert
 
-@app.get("/certificate/{audit_id}")
-async def get_certificate(audit_id: str):
+@app.post(\"/report/{audit_id}\")
+async def get_report(audit_id: str):
+    cached = get_cached_report(audit_id)
+    if cached: return cached
+
     if audit_id not in certificates:
-        raise HTTPException(status_code=404, detail="Certificate not found")
-    return certificates[audit_id]
+        if audit_id in audits:
+            cert = await audit_certify(audit_id)
+        else:
+            raise HTTPException(status_code=404, detail=\"Certificate not found\")
+    else:
+        cert = certificates[audit_id]
 
-@app.get("/drift/{audit_id}/history")
-async def get_drift_history(audit_id: str):
-    return audits.get(audit_id, {}).get("drift_history", [])
+    report = generate_audit_report(cert)
+    cache_report(audit_id, report)
+    return asdict(report)
 
-if __name__ == "__main__":
+if __name__ == \"__main__\":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=\"0.0.0.0\", port=8000)

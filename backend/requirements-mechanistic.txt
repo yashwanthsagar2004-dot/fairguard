@@ -1,0 +1,9 @@
+# Requirements for the local-only mechanistic interpretability module.
+# Separate from requirements.txt so Cloud Run doesn't pull these heavy deps.
+# Install with: pip install -r backend/requirements-mechanistic.txt
+transformers>=4.45.0
+sae-lens>=3.0.0
+accelerate>=0.30.0
+bitsandbytes>=0.43.0
+torch>=2.3.0
+goodfire>=0.3.0
