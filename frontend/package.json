@@ -1,5 +1,6 @@
 "scripts": {
-  "build": "vite build",
+  "build": "vite build",        // this is what Vercel should run
   "dev": "vite",
-  "preview": "vite preview"
+  "preview": "vite preview",
+  "typecheck": "tsc --noEmit"   // optional: separate type-check command
 }
