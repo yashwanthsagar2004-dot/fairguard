@@ -1,37 +1,5 @@
-{
-  "name": "fairguard-frontend",
-  "private": true,
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "clsx": "latest",
-    "tailwind-merge": "latest",
-    "lucide-react": "^0.546.0",
-    "recharts": "latest",
-    "react-markdown": "latest",
-    "framer-motion": "latest",
-    "@radix-ui/react-slot": "latest",
-    "@radix-ui/react-tabs": "latest",
-    "@radix-ui/react-progress": "latest",
-    "@radix-ui/react-dialog": "latest",
-    "@radix-ui/react-label": "latest",
-    "@radix-ui/react-select": "latest",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "motion": "^12.23.24",
-    "@vercel/speed-insights": "latest"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^5.0.4",
-    "@tailwindcss/vite": "^4.1.14",
-    "tailwindcss": "^4.1.14",
-    "typescript": "latest",
-    "vite": "^6.2.0"
-  }
+"scripts": {
+  "build": "vite build",
+  "dev": "vite",
+  "preview": "vite preview"
 }
