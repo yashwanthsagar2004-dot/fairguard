@@ -1,9 +1,5 @@
 {
-  "version": 2,
-  "framework": "vite",
-  "rootDirectory": "frontend",
-  "outputDirectory": "dist",
-  "cleanUrls": true,
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "backend/*.py": {
       "runtime": null
