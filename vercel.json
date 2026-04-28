@@ -1,11 +1,7 @@
 {
   "version": 2,
   "framework": "vite",
-  "outputDirectory": "frontend/dist",
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.py"
-    }
-  ]
+  "rootDirectory": "frontend",
+  "outputDirectory": "dist",
+  "cleanUrls": true
 }

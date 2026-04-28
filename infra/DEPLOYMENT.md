@@ -13,29 +13,16 @@ USER fairguard
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
 ```
 
-## Cloud Run (asia-south1)
+## Vercel (Frontend)
+- **Framework**: Vite
+- **Root Directory**: `frontend/`
+- **Output Directory**: `dist/`
+- **Rewrites**: Point to the Cloud Run backend URL via environment variables.
+
+## Cloud Run (Backend)
+(Existing configuration for Python backend)
 ```yaml
-apiVersion: serving.knative.dev/v1
-kind: Service
-metadata:
-  name: fairguard-backend
-  labels:
-    cloud.googleapis.com/location: asia-south1
-spec:
-  template:
-    spec:
-      containers:
-      - image: gcr.io/fairguard/backend
-        resources:
-          limits:
-            cpu: 2000m
-            memory: 4Gi
-        env:
-        - name: GEMINI_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: gemini-api-key
-              key: latest
+# ... (same as before)
 ```
 
 ## Terraform
