@@ -34,11 +34,22 @@ except ImportError:
     StructuralCausalModel = None
     ctf_de = ctf_ie = ctf_se = total_variation = None
 
-app = FastAPI(title=\"FairGuard Backend\", version=\"1.0.0\")
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="FairGuard Backend", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(drift_router)
 
 if FAIRGUARD_LOCAL_MODE and mechanistic_router:
-    app.include_router(mechanistic_router, tags=[\"Mechanistic\"])
+    app.include_router(mechanistic_router, tags=["Mechanistic"])
 
 # In-memory storage for demo
 audits = {}

@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+pydantic
+python-multipart
+google-genai
+pytest
+httpx
+dowhy>=0.12
+networkx
+pandas
+scipy
+numpy
+google-cloud-kms
+reportlab
+qrcode
+cryptography
+google-cloud-storage
