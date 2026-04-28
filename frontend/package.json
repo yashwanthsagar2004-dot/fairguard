@@ -18,14 +18,14 @@
     "framer-motion": "latest",
     "@radix-ui/react-slot": "latest",
     "@radix-ui/react-tabs": "latest",
-    "@radix-ui/react-card": "latest",
     "@radix-ui/react-progress": "latest",
     "@radix-ui/react-dialog": "latest",
     "@radix-ui/react-label": "latest",
     "@radix-ui/react-select": "latest",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "motion": "^12.23.24"
+    "motion": "^12.23.24",
+    "@vercel/speed-insights": "latest"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.0.4",

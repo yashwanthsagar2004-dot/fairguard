@@ -3,5 +3,10 @@
   "framework": "vite",
   "rootDirectory": "frontend",
   "outputDirectory": "dist",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "functions": {
+    "backend/*.py": {
+      "runtime": null
+    }
+  }
 }

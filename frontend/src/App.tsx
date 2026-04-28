@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { 
   ShieldCheck, 
   Upload, 
@@ -705,6 +706,7 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
       </main>
+      <SpeedInsights />
     </div>
   );
 }
